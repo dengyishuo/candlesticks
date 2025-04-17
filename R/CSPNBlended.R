@@ -1,21 +1,27 @@
-CSPNBlended <- function (TS, N) {
-  if (!is.OHLC(TS)) {
+CSPNBlended <- function(TS, N) {
+
+  if (!quantmod::is.OHLC(TS))
     stop("Price series must contain Open, High, Low and Close.")
-  }
-  
-  if (N<1) {
-    stop("N has to be a integer >= 1")
-  }
-  
-  LAGTS <- LagOHLC(TS,k=0:(N-1))
-  OP <- Op(LAGTS)[,N]
-  HI <- reclass(as.xts(apply(Hi(LAGTS),1,max), dateFormat=indexClass(try.xts(TS)[1])), TS)
-  LO <- reclass(as.xts(apply(Lo(LAGTS),1,min), dateFormat=indexClass(try.xts(TS)[1])), TS)
-  CL <- Cl(LAGTS)[,1]
-  result <- cbind(OP,HI,LO,CL)
-  colnames(result) <- c(paste(N, ".Blended.Open", sep=""), 
-                        paste(N, ".Blended.High", sep=""), 
-                        paste(N, ".Blended.Low", sep=""), 
-                        paste(N, ".Blended.Close", sep=""))
-  return (result)
+  if (N < 1 || N != as.integer(N))
+    stop("N must be an integer >=1")
+
+  OpLagN <- quantmod::Lag(quantmod::Op(TS), k = N)
+
+  HighRoll <- zoo::rollapply(quantmod::Hi(TS), width=N,
+                             FUN=max, align="right", fill=NA)
+  LowRoll <- zoo::rollapply(quantmod::Lo(TS), width=N,
+                            FUN=min, align="right", fill=NA)
+
+  result <- merge(
+    Open  = OpLagN,
+    High  = HighRoll,
+    Low   = LowRoll,
+    Close = quantmod::Cl(TS)
+  )
+
+  colnames(result) <- paste(N,
+                            c("Blended.Open", "Blended.High", "Blended.Low", "Blended.Close"),
+                            sep=".")
+
+  return(na.omit(result))
 }
